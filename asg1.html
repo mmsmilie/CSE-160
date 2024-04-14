@@ -1,0 +1,37 @@
+<!--Michael Muzilla-->
+<!--msmuzill@ucsc.edu-->
+<!-- Notes to Grader-->
+<!-- Nothing.-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vector Operations</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="first" width="400" height="400"></canvas>
+    <br>
+    <input type ="button" onclick="drawCanvas()" value="Clear Canvas"/>
+    <h2 style = "font-family:'Times New Roman', Times, serif ">Drawing Mode:</h2>
+    <input type="button" onclick="drawMode(0)" value = "Squares"/>
+    <input type="button" onclick="drawMode(1)" value = "Triangles"/>
+    <input type="button" onclick="drawMode(2)" value = "Circles"/>
+    <br>
+    <h2 style = "font-family:'Times New Roman', Times, serif ">Color Mode:</h2>
+    Red<input type = "range" min = "0" max = "255" value = "0" id = "red">
+    Green<input type = "range" min = "0" max = "255" value = "0" id = "green">
+    Blue<input type = "range" min = "0" max = "255" value = "0" id = "blue">
+    <br>
+    Shape Size: <input type = "range" min = "1" max = "100" value = "10" id = "size">
+    (Circles) Segment Count: <input type = "range" min = "3" max = "100" value = "10" id = "segments">
+    <script src="asg1.js"></script>
+  </body>
+  <style>
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 14px;
+    }
+  </style>
+</html>
