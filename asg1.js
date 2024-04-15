@@ -1,159 +1,186 @@
-var shape = 0;
-var debug = false;
+// ColoredPoint.js (c) 2012 matsuda
+// Vertex shader program
+var VSHADER_SOURCE =
+  'attribute vec4 a_Position;\n' +
+  'uniform float u_Size;\n' +
+  'void main() {\n' +
+  '  gl_Position = a_Position;\n' +
+  '  gl_PointSize = u_Size;\n' +
+  '}\n';
 
-function main() {  
+// Fragment shader program
+var FSHADER_SOURCE =
+  'precision mediump float;\n' +
+  'uniform vec4 u_FragColor;\n' +  // uniform変数
+  'void main() {\n' +
+  '  gl_FragColor = u_FragColor;\n' +
+  '}\n';
+
+
+const POINT = 0;
+const TRIANGLE = 1;
+const CIRCLE = 2;
+
+// Global Variables
+let canvas;
+let gl;
+let a_Position;
+let u_FragColor;
+let u_Size;
+
+let g_selectedsize = 5.0;
+let g_selectedColor = [1.0, 0.0, 0.0, 1.0];
+let g_selectedType = POINT;
+
+function setupWebGL(){
+        // Retrieve <canvas> element
+        canvas = document.getElementById('webgl');
+    
+        // Get the rendering context for WebGL  
+        gl = getWebGLContext(canvas);
+        if (!gl) {
+            console.log('Failed to get the rendering context for WebGL');
+            return;
+        }
+}
+
+function connectVariablesToGLSL(){
+    // Initialize shaders
+    if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+        console.log('Failed to intialize shaders.');
+        return;
+    }
+
+    // Get the storage location of a_Position
+    a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    if (a_Position < 0) {
+        console.log('Failed to get the storage location of a_Position');
+        return;
+    }
+
+    // Get the storage location of u_FragColor
+    u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+    if (!u_FragColor) {
+        console.log('Failed to get the storage location of u_FragColor');
+        return;
+    }
+
+    u_Size = gl.getUniformLocation(gl.program, 'u_Size');
+    if (!u_Size) {
+        console.log('Failed to get the storage location of u_Size');
+        return;
+    }
+}
+
+function main() {
 
     var doDraw = false;
 
-    drawCanvas();
-    var canvas = document.getElementById('first');
+    setupWebGL();
+    connectVariablesToGLSL();
 
-    canvas.onmousedown = function(event) {
+    // Register function (event handler) to be called on a mouse press
+    canvas.onmousedown = function(ev){ 
         doDraw = true;
-        draw(event); // Draw immediately on mousedown
+        click(ev) 
     };
-    
-    canvas.onmousemove = function(event) {
+
+    canvas.onmousemove = function(ev){ 
         if (doDraw) {
-            draw(event); // Draw when mouse moves with button down
+            click(ev)
         }
     };
-    
-    canvas.onmouseup = function(event) {
+
+    canvas.onmouseleave = function(ev){
         doDraw = false;
-    };
-    
-    canvas.onmouseleave = function(event) {
+    }
+
+    canvas.onmouseup = function(ev){
         doDraw = false;
-    };
-    
-    function draw(event) {
-        var rect = canvas.getBoundingClientRect();
-        var mouseX = event.clientX - rect.left;
-        var mouseY = event.clientY - rect.top;
-    
-        // Now we just draw once for each mousemove event.
-        if(debug) console.log('Mouse position:', mouseX, mouseY);
-        drawShape(mouseX, mouseY);
+    }
+
+    // Specify the color for clearing <canvas>
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+    // Clear <canvas>
+    gl.clear(gl.COLOR_BUFFER_BIT);
+}
+
+var g_shapeList = [];
+
+var g_points = [];  // The array for the position of a mouse press
+var g_colors = [];  // The array to store the color of a point
+var g_sizes = [];
+
+function click(ev) {
+
+    let [x, y] = convertCoordinatesEventToGL(ev);
+    let point;
+    if(g_selectedType == POINT) {
+        point = new Point();
+    } else if(g_selectedType == TRIANGLE) {
+        point = new Triangle();
+    }else if(g_selectedType == CIRCLE) {
+        point = new Circle();
+    }
+    point.position = [x, y];
+    point.color = getColor().slice();
+    point.size = getSize();
+    if(point.type = 'circle'){
+        point.segments = getSegments();
+    }
+    g_shapeList.push(point);
+
+    renderAllShapes();
+
+}
+
+function convertCoordinatesEventToGL(ev) {
+    var x = ev.clientX; // x coordinate of a mouse pointer
+    var y = ev.clientY; // y coordinate of a mouse pointer
+    var rect = ev.target.getBoundingClientRect();
+
+    x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
+    y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
+    return [x, y];
+}
+
+function renderAllShapes(){
+    // Clear <canvas>
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    var len = g_shapeList.length;
+
+    for(var i = 0; i < len; i++) {
+
+        g_shapeList[i].render();
+
     }
 }
 
-function doRepeatDraw(x,y) {
-    if(doDraw){
-        drawShape(x,y);
-    }
+function getColor() {
+    var r = parseFloat(document.getElementById('red').value) / 255;
+    var g = parseFloat(document.getElementById('green').value) / 255;
+    var b = parseFloat(document.getElementById('blue').value) / 255;
+    var a = parseFloat(document.getElementById('opacity').value) / 100;
+    //console.log(r, g, b, a);
+    return new Float32Array([r, g, b, a]);
 }
 
-function drawCanvas(){
-    if(debug) console.log("Drawing Canvas");
-    var canvas = document.getElementById('first');
-    var ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 1.0)'; // Black
-    ctx.fillRect(0, 0, 400, 400);
+function clearCanvas(){
+    g_shapeList = [];
+    renderAllShapes();
 }
-
-function drawEvent(event) {
-    if (debug) console.log("Detected Click on Canvas");
-    var canvas = document.getElementById('first');
-    var ctx = canvas.getContext('2d');
-    if(debug) console.log(event.x + "," + event.y);
-    drawShape(event.x,event.y);
-}
-
-function drawMode(mode) {
-    if(debug) console.log("Drawing Mode: " + mode);
-    shape = mode;
-}
-
-function drawShape(x,y){
-    if(debug) console.log("Drawing Shape");
-    if(shape == 0){
-        drawSquare(x,y);
-    }else if(shape == 1){
-        drawTriangle(x,y);
-    }else if(shape == 2){
-        drawCircle(x,y);
-    }
-}
-
-function drawSquare(x, y) {
-    if(debug) console.log("Drawing Square");
-    var canvas = document.getElementById('first');
-    var ctx = canvas.getContext('2d');
-    var colors = getColor();
-    var size = getSize();
-    // Calculate the starting point to center the square
-    var startX = (x - size/2);
-    var startY = (y - size/2);
-    ctx.fillStyle = 'rgba(' + colors[0] + ', ' + colors[1] + ', ' + colors[2] + ', 1.0)';
-    ctx.fillRect(startX, startY, size, size);
-}
-
-function drawTriangle(x, y){
-    var canvas = document.getElementById('first');
-    var ctx = canvas.getContext('2d');
-    var colors = getColor();
-    var size = getSize();
-
-    // Adjust the triangle drawing to center it on (x, y)
-    ctx.fillStyle = 'rgba(' + colors[0] + ', ' + colors[1] + ', ' + colors[2] + ', 1.0)';
-    ctx.beginPath();
-    ctx.moveTo((x - size / 2), (y + Math.sqrt(3) / 6 * size));
-    ctx.lineTo((x + size / 2), (y + Math.sqrt(3) / 6 * size));
-    ctx.lineTo(x-7, (y - Math.sqrt(3) / 3 * size)-7);
-    ctx.closePath();
-    ctx.fill();
-}
-
-function drawCircle(x, y) {
-    var canvas = document.getElementById('first');
-    var ctx = canvas.getContext('2d');
-    var colors = getColor();
-    var size = getSize(); // This represents the diameter of the circle.
-    var segments = getSegments(); // This should return the number of segments you want to divide your circle into.
-    
-    var radius = size / 2;
-    var anglePerSegment = 2 * Math.PI / segments; // The angle that each segment will cover.
-
-    ctx.fillStyle = 'rgba(' + colors[0] + ', ' + colors[1] + ', ' + colors[2] + ', 1.0)';
-    ctx.beginPath();
-
-    // Move to the starting point on the circle's circumference
-    ctx.moveTo(x + radius * Math.cos(0), y + radius * Math.sin(0));
-
-    // Draw each segment of the circle
-    for (var i = 1; i <= segments; i++) {
-        var angle = i * anglePerSegment;
-        var nextX = x + radius * Math.cos(angle);
-        var nextY = y + radius * Math.sin(angle);
-        ctx.lineTo(nextX, nextY);
-    }
-    
-    ctx.closePath(); // Connect the last point to the first
-    ctx.fill();
-}
-
-function getColor(){
-    if(debug) console.log("Getting Color");
-    var array = new Float32Array(3);
-    
-    array[0] = parseFloat(document.getElementById('red').value);
-    array[1] = parseFloat(document.getElementById('green').value);
-    array[2] = parseFloat(document.getElementById('blue').value);
-
-    return array;
-}
-
 
 function getSize(){
-    if(debug) console.log("Getting Size");
     return document.getElementById('size').value;
 }
 
-function getSegments(){
-    if(debug) console.log("Getting Segments");
-    return document.getElementById('segments').value;
+function drawMode(mode) {
+    g_selectedType = mode;
 }
 
-
+function getSegments(){
+    //if(debug) console.log("Getting Segments");
+    return document.getElementById('segments').value;
+}
